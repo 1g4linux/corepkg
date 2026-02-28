@@ -62,3 +62,9 @@ install_subdir(
     exclude_files : py_bins + py_sbins + ['etc-update', 'meson.build'],
     install_dir : corepkg_bindir
 )
+
+install_data(
+    ['ebuild-helpers/dolib.so', 'ebuild-helpers/newlib.so'],
+    install_dir : corepkg_bindir / 'ebuild-helpers',
+    install_mode : 'rwxr-xr-x',
+)

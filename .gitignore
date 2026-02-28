@@ -1,8 +1,7 @@
 *.py[co]
 __pycache__/
 *.class
-*.so
-/build
+build*
 /tags
 /.tox/
 setup.cfg

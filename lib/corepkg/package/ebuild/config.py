@@ -3455,13 +3455,11 @@ class config:
                 except (ValueError, TypeError):
                     count = 0
 
-                # Basic Auth is more compatible across different GitLab versions
-                # and token types (PAT, Job Token, etc.).
-                auth_str = f"oauth2:{gitlab_token}"
-                auth_b64 = base64.b64encode(auth_str.encode("utf-8")).decode("utf-8")
-
+                # Bearer Auth is the correct and officially supported method
+                # for GitLab Personal Access Tokens (PATs) and CI Job Tokens
+                # via Git's http.extraHeader configuration.
                 mydict[f"GIT_CONFIG_KEY_{count}"] = f"http.{base_url}.extraHeader"
-                mydict[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Basic {auth_b64}"
+                mydict[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Bearer {gitlab_token}"
                 mydict["GIT_CONFIG_COUNT"] = str(count + 1)
 
         return mydict
