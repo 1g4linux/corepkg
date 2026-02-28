@@ -853,7 +853,7 @@ class depgraph:
                         initial_providers = installed_sonames.get((root, atom))
                         if initial_providers is None:
                             continue
-                        final_provider = next(package_tracker.match(root, atom), None)
+                        final_provider = next(iter(package_tracker.match(root, atom)), None)
                         if final_provider:
                             continue
                         for provider in initial_providers:
@@ -1434,7 +1434,7 @@ class depgraph:
             writemsg("\n\n", noiselevel=-1)
 
             selected_pkg = next(
-                self._dynamic_config._package_tracker.match(pkg.root, pkg.slot_atom),
+                iter(self._dynamic_config._package_tracker.match(pkg.root, pkg.slot_atom)),
                 None,
             )
 
@@ -2021,8 +2021,10 @@ class depgraph:
     def _slot_confict_backtrack(self, root, slot_atom, all_parents, conflict_pkgs):
         debug = "--debug" in self._frozen_config.myopts
         existing_node = next(
-            self._dynamic_config._package_tracker.match(
-                root, slot_atom, installed=False
+            iter(
+                self._dynamic_config._package_tracker.match(
+                    root, slot_atom, installed=False
+                )
             )
         )
         if existing_node not in conflict_pkgs:
@@ -3203,8 +3205,10 @@ class depgraph:
             # via self._minimize_packages().
             dep_pkg = dep.child
             existing_node = next(
-                self._dynamic_config._package_tracker.match(
-                    dep.root, dep_pkg.slot_atom, installed=False
+                iter(
+                    self._dynamic_config._package_tracker.match(
+                        dep.root, dep_pkg.slot_atom, installed=False
+                    )
                 ),
                 None,
             )
@@ -3348,8 +3352,10 @@ class depgraph:
 
     def _check_slot_conflict(self, pkg, atom):
         existing_node = next(
-            self._dynamic_config._package_tracker.match(
-                pkg.root, pkg.slot_atom, installed=False
+            iter(
+                self._dynamic_config._package_tracker.match(
+                    pkg.root, pkg.slot_atom, installed=False
+                )
             ),
             None,
         )
@@ -8339,8 +8345,10 @@ class depgraph:
 
         pkg = matches[-1]  # highest match
         in_graph = next(
-            self._dynamic_config._package_tracker.match(
-                root, pkg.slot_atom, installed=False
+            iter(
+                self._dynamic_config._package_tracker.match(
+                    root, pkg.slot_atom, installed=False
+                )
             ),
             None,
         )
@@ -11680,16 +11688,10 @@ class _dep_check_composite_db(dbapi):
         # Use reversed iteration in order to get descending order here,
         # so that the highest version involved in a slot conflict is
         # selected (see bug 554070).
-        in_graph = next(
-            reversed(
-                list(
-                    self._depgraph._dynamic_config._package_tracker.match(
-                        self._root, pkg.slot_atom, installed=False
-                    )
-                )
-            ),
-            None,
+        matches = self._depgraph._dynamic_config._package_tracker.match(
+            self._root, pkg.slot_atom, installed=False
         )
+        in_graph = matches[-1] if matches else None
 
         if in_graph is None:
             # Mask choices for packages which are not the highest visible

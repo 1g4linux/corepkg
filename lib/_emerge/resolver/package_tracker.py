@@ -225,7 +225,7 @@ class PackageTracker:
 
     def match(self, root, atom, installed=True):
         """
-        Iterates over the packages matching 'atom'.
+        Returns a list of the packages matching 'atom'.
         If 'installed' is True, installed non-replaced
         packages may also be returned.
         """
@@ -234,12 +234,12 @@ class PackageTracker:
         from corepkg.versions import vercmp
 
         if atom.soname:
-            return iter(self._provides_index.get((root, atom), []))
+            return self._provides_index.get((root, atom), [])[:]
 
         cp_key = root, atom.cp
         cache_key = root, atom, atom.unevaluated_atom, installed
         try:
-            return iter(self._match_cache.get(cp_key, {})[cache_key])
+            return self._match_cache.get(cp_key, {})[cache_key][:]
         except KeyError:
             pass
 
@@ -254,7 +254,7 @@ class PackageTracker:
         ret.sort(key=cmp_sort_key(lambda x, y: vercmp(x.version, y.version)))
         self._match_cache[cp_key][cache_key] = ret
 
-        return iter(ret)
+        return ret[:]
 
     def conflicts(self):
         """
@@ -375,7 +375,7 @@ class PackageTrackerDbapiWrapper:
         self._package_tracker.add_pkg(pkg)
 
     def match_pkgs(self, atom):
-        return list(self._package_tracker.match(self._root, atom))
+        return self._package_tracker.match(self._root, atom)
 
     def __iter__(self):
         return self._package_tracker.all_pkgs(self._root)

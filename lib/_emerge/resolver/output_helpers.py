@@ -390,7 +390,7 @@ def _tree_display(conf, mylist):
         # of an upgrade, display Blocker -> Upgrade edges since the
         # corresponding Blocker -> Uninstall edges will not be shown.
         upgrade_node = next(
-            conf.package_tracker.match(uninstall.root, uninstall.slot_atom), None
+            iter(conf.package_tracker.match(uninstall.root, uninstall.slot_atom)), None
         )
 
         if upgrade_node is not None and uninstall not in executed_uninstalls:
