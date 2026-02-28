@@ -26,7 +26,6 @@ from corepkg.localization import _
 # SHA256: hashlib
 # SHA512: hashlib
 # RMD160: hashlib, pycrypto, mhash
-# WHIRLPOOL: hashlib, bundled (C), bundled (Python)
 # BLAKE2B (512): hashlib
 # BLAKE2S (512): hashlib
 # SHA3_256: hashlib
@@ -101,8 +100,8 @@ class _generate_hash_function:
 # already defined.
 # Use hashlib if available and prefer it over pycrypto and internal fallbacks.
 #
-# Need special handling for RMD160/WHIRLPOOL as they may not always be provided by hashlib.
-# We keep fallbacks for RMD160/WHIRLPOOL for now as newer OpenSSLs don't expose them
+# Need special handling for RMD160 as it may not always be provided by hashlib.
+# We keep fallbacks for RMD160 for now as newer OpenSSLs don't expose them
 # by default.
 # See also
 # - https://github.com/python/cpython/issues/91257
@@ -114,7 +113,6 @@ _generate_hash_function("SHA256", hashlib.sha256, origin="hashlib")
 _generate_hash_function("SHA512", hashlib.sha512, origin="hashlib")
 for local_name, hash_name in (
     ("RMD160", "ripemd160"),
-    ("WHIRLPOOL", "whirlpool"),
     ("BLAKE2B", "blake2b"),
     ("BLAKE2S", "blake2s"),
     ("SHA3_256", "sha3_256"),
@@ -143,8 +141,7 @@ if "RMD160" not in hashfunc_map:
     except ImportError:
         # Try to use mhash if available
         # mhash causes GIL presently, so it gets less priority than hashlib and
-        # pycrypto. However, it might be the only accelerated implementation of
-        # WHIRLPOOL available.
+        # pycrypto.
         try:
             import mhash
 
@@ -161,18 +158,6 @@ if "RMD160" not in hashfunc_map:
                     )
         except ImportError:
             pass
-
-
-_whirlpool_unaccelerated = False
-if "WHIRLPOOL" not in hashfunc_map:
-    # Bundled WHIRLPOOL implementation
-    from corepkg.util.whirlpool import CWhirlpool, PyWhirlpool
-
-    if CWhirlpool.is_available:
-        _generate_hash_function("WHIRLPOOL", CWhirlpool, origin="bundled-c")
-    else:
-        _whirlpool_unaccelerated = True
-        _generate_hash_function("WHIRLPOOL", PyWhirlpool, origin="bundled-py")
 
 
 # There is only one implementation for size
@@ -246,13 +231,6 @@ def _filter_unaccelarated_hashes(digests):
     builds where acceleration may not be available for some hashes
     due to minimization of dependencies.
     """
-    if _whirlpool_unaccelerated and "WHIRLPOOL" in digests:
-        verifiable_hash_types = set(digests).intersection(hashfunc_keys)
-        verifiable_hash_types.discard("size")
-        if len(verifiable_hash_types) > 1:
-            digests = dict(digests)
-            digests.pop("WHIRLPOOL")
-
     return digests
 
 

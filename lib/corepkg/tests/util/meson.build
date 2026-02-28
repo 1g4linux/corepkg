@@ -17,7 +17,6 @@ py.install_sources(
         'test_stackLists.py',
         'test_uniqueArray.py',
         'test_varExpand.py',
-        'test_whirlpool.py',
         'test_xattr.py',
         '__init__.py',
         '__test__.py',

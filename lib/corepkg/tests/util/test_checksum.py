@@ -56,19 +56,6 @@ class ChecksumTestCase(TestCase):
         except DigestException:
             self.skipTest("RMD160 implementation not available")
 
-    def test_whirlpool(self):
-        try:
-            self.assertEqual(
-                checksum_str(b"", "WHIRLPOOL"),
-                "19fa61d75522a4669b44e39c1d2e1726c530232130d407f89afee0964997f7a73e83be698b288febcf88e3e03c4f0757ea8964e59b63d93708b138cc42a66eb3",
-            )
-            self.assertEqual(
-                checksum_str(self.text, "WHIRLPOOL"),
-                "8f556a079b87057f19e0880eed6d833e40c916f4b133196f6842281a2517873074d399832470c11ee251696b4844a10197714a069ba3e3415c8a4eced8f91b48",
-            )
-        except DigestException:
-            self.skipTest("WHIRLPOOL implementation not available")
-
     def test_blake2b(self):
         try:
             self.assertEqual(

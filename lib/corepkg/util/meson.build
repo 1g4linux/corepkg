@@ -26,7 +26,6 @@ py.install_sources(
         'shelve.py',
         'socks5.py',
         'time.py',
-        'whirlpool.py',
         'writeable_check.py',
         '_compare_files.py',
         '_ctypes.py',
