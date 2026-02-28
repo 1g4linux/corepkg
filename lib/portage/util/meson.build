@@ -1,0 +1,52 @@
+py.install_sources(
+    [
+        'ExtractKernelVersion.py',
+        'SlotObject.py',
+        'backoff.py',
+        'bin_entry_point.py',
+        'changelog.py',
+        'compression_probe.py',
+        'configparser.py',
+        'cpuinfo.py',
+        'digraph.py',
+        'env_update.py',
+        'file_copy.py',
+        'formatter.py',
+        'hooks.py',
+        'human_readable.py',
+        'install_mask.py',
+        'lafilefixer.py',
+        'listdir.py',
+        'locale.py',
+        'movefile.py',
+        'mtimedb.py',
+        'netlink.py',
+        'path.py',
+        'corepkg_lru_cache.py',
+        'shelve.py',
+        'socks5.py',
+        'time.py',
+        'whirlpool.py',
+        'writeable_check.py',
+        '_compare_files.py',
+        '_ctypes.py',
+        '_desktop_entry.py',
+        '_get_vm_info.py',
+        '_info_files.py',
+        '_path.py',
+        '_pty.py',
+        '_urlopen.py',
+        '_xattr.py',
+        '__init__.py',
+    ],
+    subdir : 'corepkg/util',
+    pure : not native_extensions
+)
+
+subdir('elf')
+subdir('endian')
+subdir('futures')
+subdir('iterators')
+subdir('_async')
+subdir('_dyn_libs')
+subdir('_eventloop')

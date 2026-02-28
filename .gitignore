@@ -1,0 +1,15 @@
+*.py[co]
+__pycache__/
+*.class
+*.so
+/build
+/tags
+/.tox/
+setup.cfg
+.*.swp
+*.vim
+.mypy_cache
+dist
+*.egg-info/
+MANIFEST
+TODO.md
