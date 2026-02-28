@@ -375,14 +375,7 @@ class PackageTrackerDbapiWrapper:
         self._package_tracker.add_pkg(pkg)
 
     def match_pkgs(self, atom):
-        from corepkg.util import cmp_sort_key
-        from corepkg.versions import vercmp
-
-        ret = sorted(
-            self._package_tracker.match(self._root, atom),
-            key=cmp_sort_key(lambda x, y: vercmp(x.version, y.version)),
-        )
-        return ret
+        return list(self._package_tracker.match(self._root, atom))
 
     def __iter__(self):
         return self._package_tracker.all_pkgs(self._root)
