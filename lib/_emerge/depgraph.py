@@ -7059,17 +7059,22 @@ class depgraph:
                 onlydeps,
                 self._dynamic_config._autounmask,
             )
+        else:
+            cache_key = (root, atom, onlydeps, self._dynamic_config._autounmask)
+
+        ret = self._dynamic_config._highest_pkg_cache.get(cache_key)
+        if ret is not None:
+            return ret
+
+        if atom.package:
             self._dynamic_config._highest_pkg_cache_cp_map.setdefault(
                 (root, atom.cp), []
             ).append(cache_key)
         else:
-            cache_key = (root, atom, onlydeps, self._dynamic_config._autounmask)
             self._dynamic_config._highest_pkg_cache_cp_map.setdefault(
                 (root, atom), []
             ).append(cache_key)
-        ret = self._dynamic_config._highest_pkg_cache.get(cache_key)
-        if ret is not None:
-            return ret
+
         ret = self._select_pkg_highest_available_imp(
             root, atom, onlydeps=onlydeps, parent=parent
         )
