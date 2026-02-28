@@ -3300,6 +3300,8 @@ class config:
         for x, myvalue in self.iteritems():
             if (
                 x in environ_filter
+                or x == "ONEG4_GITLAB_TOKEN"
+                or x == "ONEG4_GITLAB_OWNER_URL"
                 or x == "PORTAGE_MAIN_REPO_SYNC_URI"
                 or x == "PORTAGE_PRIVATE_OVERLAY_SYNC_URI"
                 or x.startswith("FETCHCOMMAND_")
@@ -3432,13 +3434,15 @@ class config:
         # Zero-config GitLab authentication for git-r3 and friends.
         # This allows private repos on gitlab.com (or custom GitLab instances)
         # to be fetched automatically if ONEG4_GITLAB_TOKEN is set.
-        gitlab_token = mydict.get("ONEG4_GITLAB_TOKEN")
+        # Note: We pull these from 'self' because they are filtered from 'mydict'.
+        gitlab_token = self.get("ONEG4_GITLAB_TOKEN")
         if gitlab_token:
-            gitlab_url = mydict.get("ONEG4_GITLAB_OWNER_URL", "https://gitlab.com")
+            gitlab_url = self.get("ONEG4_GITLAB_OWNER_URL", "https://gitlab.com")
             if not gitlab_url.startswith(("http://", "https://")):
                 gitlab_url = "https://" + gitlab_url
 
             from urllib.parse import urlparse
+            import base64
 
             parsed_url = urlparse(gitlab_url)
             if parsed_url.hostname:
@@ -3451,10 +3455,13 @@ class config:
                 except (ValueError, TypeError):
                     count = 0
 
+                # Basic Auth is more compatible across different GitLab versions
+                # and token types (PAT, Job Token, etc.).
+                auth_str = f"oauth2:{gitlab_token}"
+                auth_b64 = base64.b64encode(auth_str.encode("utf-8")).decode("utf-8")
+
                 mydict[f"GIT_CONFIG_KEY_{count}"] = f"http.{base_url}.extraHeader"
-                mydict[
-                    f"GIT_CONFIG_VALUE_{count}"
-                ] = f"Authorization: Bearer {gitlab_token}"
+                mydict[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Basic {auth_b64}"
                 mydict["GIT_CONFIG_COUNT"] = str(count + 1)
 
         return mydict

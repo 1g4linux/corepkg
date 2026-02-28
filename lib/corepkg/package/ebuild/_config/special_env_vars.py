@@ -119,8 +119,6 @@ environ_whitelist = frozenset(
         "NINJAOPTS",
         "NOCOLOR",
         "NO_COLOR",
-        "ONEG4_GITLAB_TOKEN",
-        "ONEG4_GITLAB_OWNER_URL",
         "P",
         "PATH",
         "PF",

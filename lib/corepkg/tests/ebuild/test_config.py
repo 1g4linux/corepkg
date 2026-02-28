@@ -55,16 +55,15 @@ class ConfigTestCase(TestCase):
             self.assertNotIn("FETCHCOMMAND_HTTPS_GITLAB_EXAMPLE_COM", env)
             self.assertNotIn("RESUMECOMMAND_HTTPS_GITLAB_EXAMPLE_COM", env)
             self.assertNotIn("PORTAGE_FETCH_HTTP_HEADER_HTTPS_GITLAB_EXAMPLE_COM", env)
-            self.assertEqual(env.get("ONEG4_GITLAB_TOKEN"), "token")
-            self.assertEqual(
-                env.get("ONEG4_GITLAB_OWNER_URL"), "https://gitlab.example.com/mygroup"
-            )
+            self.assertNotIn("ONEG4_GITLAB_TOKEN", env)
+            self.assertNotIn("ONEG4_GITLAB_OWNER_URL", env)
         finally:
             shutil.rmtree(tempdir)
 
     def testGitLabTokenGitConfig(self):
         """
-        Ensure ONEG4_GITLAB_TOKEN triggers automatic GIT_CONFIG_* injection.
+        Ensure ONEG4_GITLAB_TOKEN triggers automatic GIT_CONFIG_* injection
+        with Basic Auth and is itself filtered from the environment.
         """
         tempdir = tempfile.mkdtemp()
         try:
@@ -85,7 +84,11 @@ class ConfigTestCase(TestCase):
             finally:
                 corepkg.const.EPREFIX = eprefix_orig
 
-            settings["ONEG4_GITLAB_TOKEN"] = "my-secret-token"
+            token = "my-secret-token"
+            import base64
+
+            auth_b64 = base64.b64encode(f"oauth2:{token}".encode("utf-8")).decode("utf-8")
+            settings["ONEG4_GITLAB_TOKEN"] = token
 
             # Case 1: Default gitlab.com
             env = settings.environ()
@@ -93,10 +96,9 @@ class ConfigTestCase(TestCase):
             self.assertEqual(
                 env.get("GIT_CONFIG_KEY_0"), "http.https://gitlab.com/.extraHeader"
             )
-            self.assertEqual(
-                env.get("GIT_CONFIG_VALUE_0"), "Authorization: Bearer my-secret-token"
-            )
-            self.assertEqual(env.get("ONEG4_GITLAB_TOKEN"), "my-secret-token")
+            self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), f"Authorization: Basic {auth_b64}")
+            # Ensure it's filtered from the shell environment
+            self.assertNotIn("ONEG4_GITLAB_TOKEN", env)
 
             # Case 2: Custom owner URL
             settings["ONEG4_GITLAB_OWNER_URL"] = "https://git.example.com/group"
@@ -105,9 +107,8 @@ class ConfigTestCase(TestCase):
             self.assertEqual(
                 env.get("GIT_CONFIG_KEY_0"), "http.https://git.example.com/.extraHeader"
             )
-            self.assertEqual(
-                env.get("GIT_CONFIG_VALUE_0"), "Authorization: Bearer my-secret-token"
-            )
+            self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), f"Authorization: Basic {auth_b64}")
+            self.assertNotIn("ONEG4_GITLAB_OWNER_URL", env)
 
             # Case 3: Preserving existing GIT_CONFIG_*
             settings["GIT_CONFIG_COUNT"] = "1"
@@ -120,9 +121,7 @@ class ConfigTestCase(TestCase):
             self.assertEqual(
                 env.get("GIT_CONFIG_KEY_1"), "http.https://git.example.com/.extraHeader"
             )
-            self.assertEqual(
-                env.get("GIT_CONFIG_VALUE_1"), "Authorization: Bearer my-secret-token"
-            )
+            self.assertEqual(env.get("GIT_CONFIG_VALUE_1"), f"Authorization: Basic {auth_b64}")
 
         finally:
             shutil.rmtree(tempdir)
