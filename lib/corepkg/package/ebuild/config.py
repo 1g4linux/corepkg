@@ -3300,8 +3300,6 @@ class config:
         for x, myvalue in self.iteritems():
             if (
                 x in environ_filter
-                or x == "ONEG4_GITLAB_TOKEN"
-                or x == "ONEG4_GITLAB_OWNER_URL"
                 or x == "PORTAGE_MAIN_REPO_SYNC_URI"
                 or x == "PORTAGE_PRIVATE_OVERLAY_SYNC_URI"
                 or x.startswith("FETCHCOMMAND_")
@@ -3430,6 +3428,34 @@ class config:
         else:
             mydict["PORTAGE_ACTUAL_DISTDIR"] = distdir
             mydict["DISTDIR"] = os.path.join(builddir, "distdir")
+
+        # Zero-config GitLab authentication for git-r3 and friends.
+        # This allows private repos on gitlab.com (or custom GitLab instances)
+        # to be fetched automatically if ONEG4_GITLAB_TOKEN is set.
+        gitlab_token = mydict.get("ONEG4_GITLAB_TOKEN")
+        if gitlab_token:
+            gitlab_url = mydict.get("ONEG4_GITLAB_OWNER_URL", "https://gitlab.com")
+            if not gitlab_url.startswith(("http://", "https://")):
+                gitlab_url = "https://" + gitlab_url
+
+            from urllib.parse import urlparse
+
+            parsed_url = urlparse(gitlab_url)
+            if parsed_url.hostname:
+                # We want a base URL like http://gitlab.com/ (with trailing slash)
+                # so that http.<url>.extraHeader applies to all repos on that host.
+                base_url = f"{parsed_url.scheme}://{parsed_url.hostname}/"
+
+                try:
+                    count = int(mydict.get("GIT_CONFIG_COUNT", "0"))
+                except (ValueError, TypeError):
+                    count = 0
+
+                mydict[f"GIT_CONFIG_KEY_{count}"] = f"http.{base_url}.extraHeader"
+                mydict[
+                    f"GIT_CONFIG_VALUE_{count}"
+                ] = f"Authorization: Bearer {gitlab_token}"
+                mydict["GIT_CONFIG_COUNT"] = str(count + 1)
 
         return mydict
 

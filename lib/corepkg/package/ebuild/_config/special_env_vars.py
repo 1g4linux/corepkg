@@ -119,6 +119,8 @@ environ_whitelist = frozenset(
         "NINJAOPTS",
         "NOCOLOR",
         "NO_COLOR",
+        "ONEG4_GITLAB_TOKEN",
+        "ONEG4_GITLAB_OWNER_URL",
         "P",
         "PATH",
         "PF",
@@ -247,7 +249,7 @@ environ_whitelist = frozenset(
     )
 )
 
-environ_whitelist_re = re.compile(r"^(CCACHE_|DISTCC_).*")
+environ_whitelist_re = re.compile(r"^(CCACHE_|DISTCC_|GIT_CONFIG_).*")
 
 # Filter selected variables in the config.environ() method so that
 # they don't needlessly propagate down into the ebuild environment.
