@@ -65,9 +65,15 @@ class PackagePhase(CompositeTask):
                         "-e",
                         "-c",
                         (
+                            # Some cp implementations fail to preserve mode on ACL-heavy
+                            # trees (for example /var/log/journal). Fall back to tar copy.
                             "rm -rf {PROOT}; "
-                            'cp -pPR $(cp --help | grep -q -- "^[[:space:]]*-l," && echo -l)'
-                            ' "${{D}}" {PROOT}'
+                            'if ! cp -pPR $(cp --help | grep -q -- "^[[:space:]]*-l," && echo -l)'
+                            ' "${{D}}" {PROOT}; then '
+                            "rm -rf {PROOT}; mkdir -p {PROOT}; "
+                            '(cd "${{D}}" && tar --acls --xattrs -cpf - .) | '
+                            "(cd {PROOT} && tar --acls --xattrs -xpf -); "
+                            "fi"
                         ).format(PROOT=shlex.quote(self._proot)),
                     ],
                     background=self.background,
