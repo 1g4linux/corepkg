@@ -34,6 +34,10 @@ option('apidoc', type : 'boolean', value : false,
     description : 'Build and install API documentation'
 )
 
+option('install-tests', type : 'boolean', value : false,
+    description : 'Install the Python test modules'
+)
+
 option('native-extensions', type : 'boolean', value : true,
     description : 'Build and install the native extensions for better performance'
 )
