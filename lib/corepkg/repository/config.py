@@ -81,6 +81,19 @@ _auto_private_overlay_relpath = os.path.join(
 )
 
 
+def _repo_has_ebuilds(repo_location):
+    """
+    Return True if repo_location has at least one category/package/*.ebuild.
+    """
+    try:
+        for _ in Path(repo_location).glob("*/*/*.ebuild"):
+            return True
+    except OSError:
+        pass
+
+    return False
+
+
 def _gen_valid_repo(name):
     """
     Substitute hyphen in place of characters that don't conform to PMS 3.1.5,
@@ -1000,15 +1013,15 @@ class RepoConfigLoader:
             portdir = os.path.realpath(portdir)
 
         configured_main_repo = prepos["DEFAULT"].main_repo
+        private_overlay_location = os.path.join(
+            os.sep, settings["EPREFIX"].lstrip(os.sep), _auto_private_overlay_relpath
+        )
         private_overlay_sync_uri = settings.get("PORTAGE_PRIVATE_OVERLAY_SYNC_URI", "")
         private_overlay_sync_uri = private_overlay_sync_uri.strip()
         auto_private_overlay_name = None
+        private_overlay = prepos.get(_auto_private_overlay_name)
         if private_overlay_sync_uri:
             auto_private_overlay_name = _auto_private_overlay_name
-            private_overlay_location = os.path.join(
-                os.sep, settings["EPREFIX"].lstrip(os.sep), _auto_private_overlay_relpath
-            )
-            private_overlay = prepos.get(auto_private_overlay_name)
             if private_overlay is None:
                 private_overlay = RepoConfig(
                     auto_private_overlay_name,
@@ -1032,6 +1045,17 @@ class RepoConfigLoader:
                     private_overlay.auto_sync = "yes"
                 private_overlay.sync_type = "git"
                 private_overlay.sync_uri = private_overlay_sync_uri
+        elif private_overlay is None and _repo_has_ebuilds(private_overlay_location):
+            auto_private_overlay_name = _auto_private_overlay_name
+            private_overlay = RepoConfig(
+                auto_private_overlay_name,
+                {
+                    "location": private_overlay_location,
+                    "priority": "-9999",
+                },
+                local_config=settings.local_config,
+            )
+            prepos[auto_private_overlay_name] = private_overlay
 
         ignored_repos = tuple(
             (repo_name, tuple(paths)) for repo_name, paths in ignored_map.items()

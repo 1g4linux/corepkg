@@ -248,6 +248,97 @@ class ConfigTestCase(TestCase):
         finally:
             shutil.rmtree(tempdir)
 
+    def testPrivateOverlayAutoOverlayFromExistingPackages(self):
+        """
+        Ensure /var/db/repos/private-overlay is auto-configured when it
+        exists and has at least one ebuild.
+        """
+        tempdir = tempfile.mkdtemp()
+        try:
+            private_overlay = os.path.join(
+                tempdir, "var", "db", "repos", "private-overlay"
+            )
+            os.makedirs(os.path.join(private_overlay, "profiles"))
+            os.makedirs(os.path.join(private_overlay, "app-misc", "foo"))
+
+            with open(os.path.join(private_overlay, "profiles", "repo_name"), "w") as f:
+                f.write("private-overlay\n")
+            with open(
+                os.path.join(private_overlay, "profiles", "categories"), "w"
+            ) as f:
+                f.write("app-misc\n")
+            with open(
+                os.path.join(private_overlay, "app-misc", "foo", "foo-1.ebuild"), "w"
+            ) as f:
+                f.write('EAPI="8"\nDESCRIPTION="autodetect test"\nSLOT="0"\n')
+
+            public_repo = os.path.join(tempdir, "var", "db", "repos", "public")
+            env = {
+                "PORTAGE_REPOSITORIES": "[DEFAULT]\nmain-repo = public\n"
+                "[public]\nlocation = %s\nsync-type = git\n"
+                "sync-uri = https://github.com/example/public-overlay.git"
+                % public_repo
+            }
+
+            eprefix_orig = corepkg.const.EPREFIX
+            corepkg.const.EPREFIX = tempdir
+            try:
+                settings = config(
+                    config_profile_path="",
+                    config_root=tempdir,
+                    env=env,
+                    eprefix=tempdir,
+                )
+            finally:
+                corepkg.const.EPREFIX = eprefix_orig
+
+            self.assertIn("private-overlay", settings.repositories)
+            private_repo = settings.repositories["private-overlay"]
+            self.assertEqual(private_repo.location, private_overlay)
+            self.assertEqual(
+                tuple(master.name for master in private_repo.masters), ("public",)
+            )
+            self.assertIsNone(private_repo.sync_uri)
+        finally:
+            shutil.rmtree(tempdir)
+
+    def testPrivateOverlayAutoOverlayRequiresPackages(self):
+        """
+        Ensure /var/db/repos/private-overlay is ignored if it has no ebuilds.
+        """
+        tempdir = tempfile.mkdtemp()
+        try:
+            private_overlay = os.path.join(
+                tempdir, "var", "db", "repos", "private-overlay"
+            )
+            os.makedirs(os.path.join(private_overlay, "profiles"))
+            with open(os.path.join(private_overlay, "profiles", "repo_name"), "w") as f:
+                f.write("private-overlay\n")
+
+            public_repo = os.path.join(tempdir, "var", "db", "repos", "public")
+            env = {
+                "PORTAGE_REPOSITORIES": "[DEFAULT]\nmain-repo = public\n"
+                "[public]\nlocation = %s\nsync-type = git\n"
+                "sync-uri = https://github.com/example/public-overlay.git"
+                % public_repo
+            }
+
+            eprefix_orig = corepkg.const.EPREFIX
+            corepkg.const.EPREFIX = tempdir
+            try:
+                settings = config(
+                    config_profile_path="",
+                    config_root=tempdir,
+                    env=env,
+                    eprefix=tempdir,
+                )
+            finally:
+                corepkg.const.EPREFIX = eprefix_orig
+
+            self.assertNotIn("private-overlay", settings.repositories)
+        finally:
+            shutil.rmtree(tempdir)
+
     def testClone(self):
         """
         Test the clone via constructor.
