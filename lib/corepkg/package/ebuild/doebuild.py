@@ -102,7 +102,10 @@ from corepkg.util.futures import asyncio
 from corepkg.util.futures.executor.fork import ForkExecutor
 from corepkg.util.path import first_existing
 from corepkg.util.socks5 import get_socks5_proxy
-from corepkg.util._dyn_libs.dyn_libs import check_dyn_libs_inconsistent
+from corepkg.util._dyn_libs.dyn_libs import (
+    check_dyn_libs_inconsistent,
+    fallback_multilib_category,
+)
 from corepkg.versions import _pkgsplit, pkgcmp
 from _emerge.BinpkgEnvExtractor import BinpkgEnvExtractor
 from _emerge.EbuildBuildDir import EbuildBuildDir
@@ -3271,7 +3274,11 @@ def _post_src_install_soname_symlinks(mysettings, out):
             elf_header = ELFHeader.read(f)
 
         # Compute the multilib category and write it back to the file.
+        # Fallback to a single-ABI category derived from scanelf architecture
+        # when the multilib classifier does not recognize this ELF.
         entry.multilib_category = compute_multilib_category(elf_header)
+        if entry.multilib_category is None:
+            entry.multilib_category = fallback_multilib_category(entry.arch)
         needed_file.write(str(entry))
 
         if entry.multilib_category is None:

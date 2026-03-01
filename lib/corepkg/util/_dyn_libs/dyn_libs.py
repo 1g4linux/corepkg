@@ -2,6 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 
 import os
+import re
 import stat
 
 import corepkg
@@ -63,3 +64,21 @@ def check_dyn_libs_inconsistent(directory, provides):
     # to properly parse the installed files at all, which should really
     # be a global problem (e.g. bug #811462)
     return not provides and installed_dynlibs(directory)
+
+
+def fallback_multilib_category(arch):
+    """
+    Derive a stable single-ABI category from a scanelf architecture token.
+    Returns None if the token is not usable as a category.
+    """
+    if not arch:
+        return None
+
+    arch = arch.strip().lower().replace("-", "_")
+    if arch.startswith("em_"):
+        arch = arch[3:]
+
+    if not arch or re.fullmatch(r"[a-z0-9_]+", arch) is None:
+        return None
+
+    return arch
