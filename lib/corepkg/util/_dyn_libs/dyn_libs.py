@@ -7,46 +7,48 @@ import stat
 
 import corepkg
 
+_LIB_SONAME_RE = re.compile(r"^lib[^/]*\.so(?:\..+)?$")
+
 
 def installed_dynlibs(directory):
     """
-    This traverses installed *.so symlinks to check if they point to
-    regular files. If a symlink target is outside of the top directory,
-    traversal follows the corresponding file inside the top directory
-    if it exists, and otherwise stops following the symlink.
+    Traverse installed library-style soname files (lib*.so and
+    lib*.so.*) and return True if any resolve to a regular file.
+    If a symlink target is outside of the top directory, traversal
+    follows the corresponding file inside the top directory if it
+    exists, and otherwise stops following the symlink.
     """
     directory_prefix = f"{directory.rstrip(os.sep)}{os.sep}"
     for parent, _dirnames, filenames in os.walk(directory):
         for filename in filenames:
-            if filename.endswith(".so"):
-                filename_abs = os.path.join(parent, filename)
-                target = filename_abs
-                levels = 0
-                while True:
-                    try:
-                        st = os.lstat(target)
-                    except OSError:
+            if _LIB_SONAME_RE.match(filename) is None:
+                continue
+            filename_abs = os.path.join(parent, filename)
+            target = filename_abs
+            levels = 0
+            while True:
+                try:
+                    st = os.lstat(target)
+                except OSError:
+                    break
+                if stat.S_ISREG(st.st_mode):
+                    return True
+                elif stat.S_ISLNK(st.st_mode):
+                    levels += 1
+                    if levels == 40:
+                        corepkg.writemsg(
+                            f"too many levels of symbolic links: {filename_abs}\n",
+                            noiselevel=-1,
+                        )
                         break
-                    if stat.S_ISREG(st.st_mode):
-                        return True
-                    elif stat.S_ISLNK(st.st_mode):
-                        levels += 1
-                        if levels == 40:
-                            corepkg.writemsg(
-                                f"too many levels of symbolic links: {filename_abs}\n",
-                                noiselevel=-1,
-                            )
-                            break
-                        target = corepkg.abssymlink(target)
-                        if not target.startswith(directory_prefix):
-                            # If target is outside the top directory, then follow the
-                            # corresponding file inside the top directory if it exists,
-                            # and otherwise stop following.
-                            target = os.path.join(
-                                directory_prefix, target.lstrip(os.sep)
-                            )
-                    else:
-                        break
+                    target = corepkg.abssymlink(target)
+                    if not target.startswith(directory_prefix):
+                        # If target is outside the top directory, then follow the
+                        # corresponding file inside the top directory if it exists,
+                        # and otherwise stop following.
+                        target = os.path.join(directory_prefix, target.lstrip(os.sep))
+                else:
+                    break
     return False
 
 

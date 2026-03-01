@@ -63,3 +63,22 @@ class InstalledDynlibsTestCase(TestCase):
             ensure_dirs(os.path.dirname(symlink_path))
             os.symlink(BASH_BINARY, symlink_path)
             self.assertTrue(installed_dynlibs(directory))
+
+    def testInstalledDynlibsPythonExtension(self):
+        """
+        Ignore extension modules that end in *.so but are not
+        library-style soname files.
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            ext_path = os.path.join(
+                directory,
+                "usr",
+                "lib",
+                "python3.13",
+                "site-packages",
+                "nacl",
+                "_sodium.cpython-313-x86_64-linux-gnu.so",
+            )
+            ensure_dirs(os.path.dirname(ext_path))
+            copyfile(BASH_BINARY, ext_path)
+            self.assertFalse(installed_dynlibs(directory))
