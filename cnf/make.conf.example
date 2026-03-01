@@ -162,18 +162,19 @@
 #   RESUMECOMMAND_<PROTO>_<HOST>[_<PORT>]
 # Host tokens are uppercase with non-alphanumeric characters replaced by "_".
 # Example:
-#FETCHCOMMAND_HTTPS_GITLAB_EXAMPLE_COM="wget -t 3 -T 60 --header=\"Authorization: Bearer \${GITLAB_TOKEN}\" -O \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
-#RESUMECOMMAND_HTTPS_GITLAB_EXAMPLE_COM="wget -c -t 3 -T 60 --header=\"Authorization: Bearer \${GITLAB_TOKEN}\" -O \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
+#FETCHCOMMAND_HTTPS_GITLAB_EXAMPLE_COM="wget -t 3 -T 60 --header=\"Authorization: Basic <base64(oauth2:\${GITLAB_TOKEN})>\" -O \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
+#RESUMECOMMAND_HTTPS_GITLAB_EXAMPLE_COM="wget -c -t 3 -T 60 --header=\"Authorization: Basic <base64(oauth2:\${GITLAB_TOKEN})>\" -O \"\${DISTDIR}/\${FILE}\" \"\${URI}\""
 #
 # Built-in per-host HTTP header support (works with default wget/curl commands):
-#PORTAGE_FETCH_HTTP_HEADER_HTTPS_GITLAB_EXAMPLE_COM="Authorization: Bearer \${GITLAB_TOKEN}"
+#PORTAGE_FETCH_HTTP_HEADER_HTTPS_GITLAB_EXAMPLE_COM="Authorization: Basic <base64(oauth2:\${GITLAB_TOKEN})>"
 #
 # Zero-config GitLab token support: if ONEG4_GITLAB_TOKEN is exported in the
 # environment when invoking emerge, Corepkg automatically sends
-# "Authorization: Bearer ${ONEG4_GITLAB_TOKEN}" for http(s) distfile URLs
-# whose host contains "gitlab". The same token is also used for
-# sync-type=git repositories when sync-uri is an http(s) URL with a host
-# containing "gitlab".
+# "Authorization: Basic <base64(oauth2:${ONEG4_GITLAB_TOKEN})>" for http(s) distfile URLs
+# under ONEG4_GITLAB_OWNER_URL (if set) or hosts with a "gitlab" DNS label
+# (if unset). The same token is also used for sync-type=git repositories
+# when sync-uri is an http(s) URL under ONEG4_GITLAB_OWNER_URL (if set) or
+# a host with a "gitlab" DNS label (if unset).
 # Optional restriction: limit token use to URLs under one owner prefix.
 #ONEG4_GITLAB_OWNER_URL="https://gitlab.example.com/mygroup"
 #export ONEG4_GITLAB_TOKEN="glpat-REDACTED"

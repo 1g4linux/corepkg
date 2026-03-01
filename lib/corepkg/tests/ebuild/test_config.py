@@ -1,6 +1,7 @@
 # Copyright 2010-2020 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+import base64
 import tempfile
 
 import corepkg
@@ -86,6 +87,9 @@ class ConfigTestCase(TestCase):
 
             token = "my-secret-token"
             settings["ONEG4_GITLAB_TOKEN"] = token
+            expected_value = "Authorization: Basic " + base64.b64encode(
+                f"oauth2:{token}".encode("utf-8")
+            ).decode("ascii")
 
             # Case 1: Default gitlab.com
             env = settings.environ()
@@ -93,7 +97,7 @@ class ConfigTestCase(TestCase):
             self.assertEqual(
                 env.get("GIT_CONFIG_KEY_0"), "http.https://gitlab.com/.extraHeader"
             )
-            self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), f"Authorization: Bearer {token}")
+            self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), expected_value)
             # Ensure it's filtered from the shell environment
             self.assertNotIn("ONEG4_GITLAB_TOKEN", env)
 
@@ -102,9 +106,10 @@ class ConfigTestCase(TestCase):
             env = settings.environ()
             self.assertEqual(env.get("GIT_CONFIG_COUNT"), "1")
             self.assertEqual(
-                env.get("GIT_CONFIG_KEY_0"), "http.https://git.example.com/.extraHeader"
+                env.get("GIT_CONFIG_KEY_0"),
+                "http.https://git.example.com/group/.extraHeader",
             )
-            self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), f"Authorization: Bearer {token}")
+            self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), expected_value)
             self.assertNotIn("ONEG4_GITLAB_OWNER_URL", env)
 
             # Case 3: Preserving existing GIT_CONFIG_*
@@ -116,9 +121,10 @@ class ConfigTestCase(TestCase):
             self.assertEqual(env.get("GIT_CONFIG_KEY_0"), "user.name")
             self.assertEqual(env.get("GIT_CONFIG_VALUE_0"), "Test User")
             self.assertEqual(
-                env.get("GIT_CONFIG_KEY_1"), "http.https://git.example.com/.extraHeader"
+                env.get("GIT_CONFIG_KEY_1"),
+                "http.https://git.example.com/group/.extraHeader",
             )
-            self.assertEqual(env.get("GIT_CONFIG_VALUE_1"), f"Authorization: Bearer {token}")
+            self.assertEqual(env.get("GIT_CONFIG_VALUE_1"), expected_value)
 
         finally:
             shutil.rmtree(tempdir)

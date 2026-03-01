@@ -1101,9 +1101,11 @@ Set environment variables for git when cloning or pulling the repository.
 These will be overridden by setting them again in sync\-git\-clone\-env and
 sync\-git\-pull\-env.
 If \fBONEG4_GITLAB_TOKEN\fR is set in the calling environment, then for
-\fBsync\-uri\fR values using \fIhttp(s)\fR with a host containing "gitlab",
+\fBsync\-uri\fR values using \fIhttp(s)\fR that are under
+\fBONEG4_GITLAB_OWNER_URL\fR (if set) or a host with a "gitlab" DNS label
+(if unset),
 Corepkg automatically injects:
-\fBAuthorization: Bearer ${ONEG4_GITLAB_TOKEN}\fR.
+\fBAuthorization: Basic base64(oauth2:${ONEG4_GITLAB_TOKEN})\fR.
 See also example for sync-git-clone-env.
 .TP
 .B sync\-git\-pull\-env

@@ -1,6 +1,7 @@
 # Copyright 2019-2024 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+import base64
 import functools
 import io
 import multiprocessing
@@ -48,13 +49,17 @@ class EbuildFetchTestCase(TestCase):
         try:
             os.environ["ONEG4_GITLAB_TOKEN"] = "token123"
             os.environ.pop("ONEG4_GITLAB_OWNER_URL", None)
+            expected_header = (
+                "Authorization: Basic "
+                + base64.b64encode(b"oauth2:token123").decode("ascii")
+            )
             self.assertEqual(
                 _get_oneg4_gitlab_header("https://gitlab.example.com/group/proj"),
-                "Authorization: Bearer token123",
+                expected_header,
             )
             self.assertEqual(
                 _get_oneg4_gitlab_header("https://gitlab.com/group/proj"),
-                "Authorization: Bearer token123",
+                expected_header,
             )
             self.assertIsNone(
                 _get_oneg4_gitlab_header("https://example.com/group/proj")
@@ -70,13 +75,23 @@ class EbuildFetchTestCase(TestCase):
                     "https://gitlab.example.com/group/proj/-/archive/main/proj.tar.gz",
                     settings,
                 ),
-                "Authorization: Bearer token123",
+                expected_header,
             )
             self.assertIsNone(
                 _get_oneg4_gitlab_header(
                     "https://gitlab.example.com/other/proj/-/archive/main/proj.tar.gz",
                     settings,
                 )
+            )
+
+            # Allow custom hosts only when explicitly scoped via owner URL.
+            custom_settings = {"ONEG4_GITLAB_OWNER_URL": "https://example.com/group"}
+            self.assertEqual(
+                _get_oneg4_gitlab_header(
+                    "https://example.com/group/proj/-/archive/main/proj.tar.gz",
+                    custom_settings,
+                ),
+                expected_header,
             )
         finally:
             if old_token is None:

@@ -2,6 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 
 import logging
+import base64
 import re
 import shlex
 import subprocess
@@ -72,12 +73,22 @@ def _owner_scope_matches(uri, owner_url):
     return uri_path == owner_path or uri_path.startswith(owner_path + "/")
 
 
+def _is_gitlab_host(hostname):
+    """
+    Match hostnames with a dedicated 'gitlab' DNS label.
+    """
+    return any(label == "gitlab" for label in hostname.strip(".").lower().split("."))
+
+
 def _get_oneg4_gitlab_sync_auth(sync_uri, settings=None):
     """
-    Build a git config key/value pair for GitLab bearer auth, if applicable.
+    Build a git config key/value pair for GitLab basic auth, if applicable.
     """
     token = os.environ.get("ONEG4_GITLAB_TOKEN")
     if not token or not sync_uri:
+        return None
+    token = token.strip()
+    if not token or any(c in token for c in ("\r", "\n", "\x00")):
         return None
 
     parsed_uri = urlparse(sync_uri)
@@ -85,20 +96,33 @@ def _get_oneg4_gitlab_sync_auth(sync_uri, settings=None):
         return None
 
     host = parsed_uri.hostname
-    if host is None or "gitlab" not in host.lower():
+    if host is None:
         return None
 
     owner_url = _get_oneg4_gitlab_owner_url(settings)
-    if owner_url is not None and not _owner_scope_matches(sync_uri, owner_url):
+    if owner_url is None:
+        if not _is_gitlab_host(host):
+            return None
+    elif not _owner_scope_matches(sync_uri, owner_url):
         return None
 
     netloc = host
     if parsed_uri.port is not None:
         netloc = f"{netloc}:{parsed_uri.port}"
 
+    path = parsed_uri.path or "/"
+    if not path.startswith("/"):
+        path = "/" + path
+    if path != "/":
+        path = path.rstrip("/")
+
+    basic_value = base64.b64encode(
+        f"oauth2:{token}".encode("utf-8", "strict")
+    ).decode("ascii")
+
     return (
-        f"http.{parsed_uri.scheme}://{netloc}/.extraHeader",
-        f"Authorization: Bearer {token}",
+        f"http.{parsed_uri.scheme}://{netloc}{path}.extraHeader",
+        f"Authorization: Basic {basic_value}",
     )
 
 

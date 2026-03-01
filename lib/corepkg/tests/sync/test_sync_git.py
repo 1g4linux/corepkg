@@ -1,6 +1,7 @@
 # Copyright 2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+import base64
 from corepkg import os
 from corepkg.sync.modules.git.git import (
     _get_oneg4_gitlab_sync_auth,
@@ -16,14 +17,18 @@ class SyncGitAuthTestCase(TestCase):
         try:
             os.environ["ONEG4_GITLAB_TOKEN"] = "token123"
             os.environ.pop("ONEG4_GITLAB_OWNER_URL", None)
+            expected_value = (
+                "Authorization: Basic "
+                + base64.b64encode(b"oauth2:token123").decode("ascii")
+            )
 
             self.assertEqual(
                 _get_oneg4_gitlab_sync_auth(
                     "https://gitlab.example.com/group/private-overlay.git"
                 ),
                 (
-                    "http.https://gitlab.example.com/.extraHeader",
-                    "Authorization: Bearer token123",
+                    "http.https://gitlab.example.com/group/private-overlay.git.extraHeader",
+                    expected_value,
                 ),
             )
             self.assertEqual(
@@ -31,8 +36,8 @@ class SyncGitAuthTestCase(TestCase):
                     "https://gitlab.example.com:8443/group/private-overlay.git"
                 ),
                 (
-                    "http.https://gitlab.example.com:8443/.extraHeader",
-                    "Authorization: Bearer token123",
+                    "http.https://gitlab.example.com:8443/group/private-overlay.git.extraHeader",
+                    expected_value,
                 ),
             )
             self.assertIsNone(
@@ -53,8 +58,8 @@ class SyncGitAuthTestCase(TestCase):
                     settings=settings,
                 ),
                 (
-                    "http.https://gitlab.example.com/.extraHeader",
-                    "Authorization: Bearer token123",
+                    "http.https://gitlab.example.com/group/private-overlay.git.extraHeader",
+                    expected_value,
                 ),
             )
             self.assertIsNone(
@@ -62,6 +67,18 @@ class SyncGitAuthTestCase(TestCase):
                     "https://gitlab.example.com/other/private-overlay.git",
                     settings=settings,
                 )
+            )
+
+            custom_settings = {"ONEG4_GITLAB_OWNER_URL": "https://example.com/group"}
+            self.assertEqual(
+                _get_oneg4_gitlab_sync_auth(
+                    "https://example.com/group/private-overlay.git",
+                    settings=custom_settings,
+                ),
+                (
+                    "http.https://example.com/group/private-overlay.git.extraHeader",
+                    expected_value,
+                ),
             )
         finally:
             if old_token is None:
@@ -80,16 +97,19 @@ class SyncGitAuthTestCase(TestCase):
             os.environ["ONEG4_GITLAB_TOKEN"] = "token123"
             os.environ.pop("ONEG4_GITLAB_OWNER_URL", None)
             uri = "https://gitlab.example.com/group/private-overlay.git"
+            expected_value = (
+                "Authorization: Basic "
+                + base64.b64encode(b"oauth2:token123").decode("ascii")
+            )
 
             env = {}
             self.assertTrue(_inject_oneg4_gitlab_sync_auth(env, uri))
             self.assertEqual(env["GIT_CONFIG_COUNT"], "1")
             self.assertEqual(
-                env["GIT_CONFIG_KEY_0"], "http.https://gitlab.example.com/.extraHeader"
+                env["GIT_CONFIG_KEY_0"],
+                "http.https://gitlab.example.com/group/private-overlay.git.extraHeader",
             )
-            self.assertEqual(
-                env["GIT_CONFIG_VALUE_0"], "Authorization: Bearer token123"
-            )
+            self.assertEqual(env["GIT_CONFIG_VALUE_0"], expected_value)
 
             # Idempotent with existing identical entry.
             self.assertTrue(_inject_oneg4_gitlab_sync_auth(env, uri))
@@ -104,11 +124,10 @@ class SyncGitAuthTestCase(TestCase):
             self.assertTrue(_inject_oneg4_gitlab_sync_auth(env, uri))
             self.assertEqual(env["GIT_CONFIG_COUNT"], "2")
             self.assertEqual(
-                env["GIT_CONFIG_KEY_1"], "http.https://gitlab.example.com/.extraHeader"
+                env["GIT_CONFIG_KEY_1"],
+                "http.https://gitlab.example.com/group/private-overlay.git.extraHeader",
             )
-            self.assertEqual(
-                env["GIT_CONFIG_VALUE_1"], "Authorization: Bearer token123"
-            )
+            self.assertEqual(env["GIT_CONFIG_VALUE_1"], expected_value)
 
             # Ignore malformed existing GIT_CONFIG_COUNT.
             env = {"GIT_CONFIG_COUNT": "not-a-number"}

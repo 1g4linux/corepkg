@@ -4,6 +4,7 @@
 __all__ = ["fetch"]
 
 import errno
+import base64
 import functools
 import glob
 import itertools
@@ -173,6 +174,13 @@ def _owner_scope_matches(uri, owner_url):
     return uri_path == owner_path or uri_path.startswith(owner_path + "/")
 
 
+def _is_gitlab_host(hostname):
+    """
+    Match hostnames with a dedicated 'gitlab' DNS label.
+    """
+    return any(label == "gitlab" for label in hostname.strip(".").lower().split("."))
+
+
 def _inject_http_header(fetch_args, header_value):
     """
     Inject an HTTP header into supported fetcher command arguments.
@@ -213,20 +221,29 @@ def _get_oneg4_gitlab_header(uri, settings=None):
     token = os.environ.get("ONEG4_GITLAB_TOKEN")
     if not token:
         return None
+    token = token.strip()
+    if not token or any(c in token for c in ("\r", "\n", "\x00")):
+        return None
 
     parsed_uri = urlparse(uri)
     if parsed_uri.scheme not in ("http", "https"):
         return None
 
     host = parsed_uri.hostname
-    if host is None or "gitlab" not in host.lower():
+    if host is None:
         return None
 
     owner_url = _get_oneg4_gitlab_owner_url(settings)
-    if owner_url is not None and not _owner_scope_matches(uri, owner_url):
+    if owner_url is None:
+        if not _is_gitlab_host(host):
+            return None
+    elif not _owner_scope_matches(uri, owner_url):
         return None
 
-    return f"Authorization: Bearer {token}"
+    auth_value = base64.b64encode(
+        f"oauth2:{token}".encode("utf-8", "strict")
+    ).decode("ascii")
+    return f"Authorization: Basic {auth_value}"
 
 
 def _want_userfetch(settings):

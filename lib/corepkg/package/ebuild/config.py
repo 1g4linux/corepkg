@@ -3437,6 +3437,13 @@ class config:
         # Note: We pull these from 'self' because they are filtered from 'mydict'.
         gitlab_token = self.get("ONEG4_GITLAB_TOKEN")
         if gitlab_token:
+            gitlab_token = gitlab_token.strip()
+            if not gitlab_token or any(
+                c in gitlab_token for c in ("\r", "\n", "\x00")
+            ):
+                gitlab_token = None
+
+        if gitlab_token:
             gitlab_url = self.get("ONEG4_GITLAB_OWNER_URL", "https://gitlab.com")
             if not gitlab_url.startswith(("http://", "https://")):
                 gitlab_url = "https://" + gitlab_url
@@ -3446,20 +3453,34 @@ class config:
 
             parsed_url = urlparse(gitlab_url)
             if parsed_url.hostname:
-                # We want a base URL like http://gitlab.com/ (with trailing slash)
-                # so that http.<url>.extraHeader applies to all repos on that host.
-                base_url = f"{parsed_url.scheme}://{parsed_url.hostname}/"
+                # Scope header injection to the owner URL prefix (including path)
+                # when provided, to avoid leaking credentials to unrelated projects.
+                netloc = parsed_url.hostname
+                if parsed_url.port is not None:
+                    netloc = f"{netloc}:{parsed_url.port}"
+
+                path_prefix = parsed_url.path or "/"
+                if not path_prefix.startswith("/"):
+                    path_prefix = "/" + path_prefix
+                if not path_prefix.endswith("/"):
+                    path_prefix += "/"
+
+                base_url = f"{parsed_url.scheme}://{netloc}{path_prefix}"
 
                 try:
                     count = int(mydict.get("GIT_CONFIG_COUNT", "0"))
                 except (ValueError, TypeError):
                     count = 0
 
-                # Bearer Auth is the correct and officially supported method
-                # for GitLab Personal Access Tokens (PATs) and CI Job Tokens
-                # via Git's http.extraHeader configuration.
+                # GitLab over HTTPS expects Basic auth with oauth2 as username
+                # and the token as password.
+                basic_value = base64.b64encode(
+                    f"oauth2:{gitlab_token}".encode("utf-8", "strict")
+                ).decode("ascii")
                 mydict[f"GIT_CONFIG_KEY_{count}"] = f"http.{base_url}.extraHeader"
-                mydict[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Bearer {gitlab_token}"
+                mydict[f"GIT_CONFIG_VALUE_{count}"] = (
+                    f"Authorization: Basic {basic_value}"
+                )
                 mydict["GIT_CONFIG_COUNT"] = str(count + 1)
 
         return mydict

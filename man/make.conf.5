@@ -1446,17 +1446,20 @@ then \fBPORTAGE_FETCH_HTTP_HEADER\fR.
 
 If no \fBPORTAGE_FETCH_HTTP_HEADER\fR override matches and the
 \fBONEG4_GITLAB_TOKEN\fR environment variable is set, then for distfile
-URIs whose host contains "gitlab", corepkg automatically sends:
-\fBAuthorization: Bearer ${ONEG4_GITLAB_TOKEN}\fR.
+URIs under \fBONEG4_GITLAB_OWNER_URL\fR (if set) or hosts with a
+"gitlab" DNS label (if unset), corepkg automatically sends:
+\fBAuthorization: Basic base64(oauth2:${ONEG4_GITLAB_TOKEN})\fR.
 The same token is also used for \fBsync\-type = git\fR repositories when
-the \fBsync\-uri\fR is a \fIhttp(s)\fR URL whose host contains "gitlab".
+the \fBsync\-uri\fR is a \fIhttp(s)\fR URL under
+\fBONEG4_GITLAB_OWNER_URL\fR (if set) or a host with a "gitlab" DNS label
+(if unset).
 If \fBONEG4_GITLAB_OWNER_URL\fR is set, then this automatic token handling
 is restricted to URLs that are under the specified owner URL prefix.
 
 Example:
 .RS
 .nf
-PORTAGE_FETCH_HTTP_HEADER_HTTPS_GITLAB_EXAMPLE_COM="Authorization: Bearer glpat-REDACTED"
+PORTAGE_FETCH_HTTP_HEADER_HTTPS_GITLAB_EXAMPLE_COM="Authorization: Basic base64(oauth2:glpat-REDACTED)"
 .fi
 .RE
 .TP
