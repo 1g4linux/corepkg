@@ -6,6 +6,27 @@ install_data(
     install_dir : sysconfdir
 )
 
+install_data(
+    [
+        'emoji-logging.sh'
+    ],
+    install_dir : sysconfdir
+)
+
+install_data(
+    [
+        'emoji-logging.sh'
+    ],
+    install_dir : sysconfdir / 'profile.d'
+)
+
+install_data(
+    [
+        'bash/bashrc.d/1g4.sh'
+    ],
+    install_dir : sysconfdir / 'bash' / 'bashrc.d'
+)
+
 extra_features = []
 make_globals = 'make.globals'
 repos_conf = 'repos.conf'
