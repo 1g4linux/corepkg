@@ -87,12 +87,14 @@ ELT_walk_patches() {
 	[[ -z ${patch_set} ]] && return 1
 	[[ ! -d ${patch_dir} ]] && return 1
 
-	# Allow patches to use @GENTOO_LIBDIR@ replacements
-	local sed_args=( -e "s:@GENTOO_LIBDIR@:@ELT_libdir@:g" )
+	# Build literal placeholders at runtime so Meson does not blank them.
+	local corepkg_libdir_token='@COREPKG_LIBDIR'"@"
+	local rem_int_dep_token='@REM_INT_DEP'"@"
+	local sed_args=( -e "s:${corepkg_libdir_token}:@ELT_libdir@:g" )
 	if [[ -n ${rem_int_dep} ]] ; then
-		# replace @REM_INT_DEP@ with what was passed
+		# replace the REM_INT_DEP placeholder with what was passed
 		# to --remove-internal-dep
-		sed_args+=( -e "s|@REM_INT_DEP@|${rem_int_dep}|g" )
+		sed_args+=( -e "s|${rem_int_dep_token}|${rem_int_dep}|g" )
 	fi
 
 	pushd "${ELT_patchdir}" >/dev/null || die "pushd to elt-patch dir failed"
