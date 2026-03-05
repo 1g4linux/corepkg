@@ -42,9 +42,13 @@ def main():
 
         out.einfo(f"Running one-off compat upgrade: {migration_name}")
         try:
-            migration_main()
+            result = migration_main()
         except Exception as e:
             out.ewarn(f"One-off compat upgrade failed: {migration_name}: {e}")
+            continue
+
+        if result is False:
+            out.einfo(f"One-off compat upgrade pending: {migration_name}")
             continue
 
         try:
