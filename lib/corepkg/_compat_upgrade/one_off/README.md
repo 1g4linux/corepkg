@@ -3,6 +3,7 @@
 Drop single-use upgrade scripts in this directory with a numeric prefix, for example:
 
 - `20260305_drop_eselect_vdb.py`
+- `20260305_normalize_corepkg_config_layout.py`
 
 Each script must expose a `main()` function.
 

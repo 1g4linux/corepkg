@@ -15,6 +15,7 @@ py.install_sources(
     [
         'one_off/__init__.py',
         'one_off/20260305_drop_legacy_split_packages_vdb.py',
+        'one_off/20260305_normalize_corepkg_config_layout.py',
         'one_off/20260305_prune_unowned_legacy_paths.py',
         'one_off/20260305_transition_portage_to_corepkg.py',
     ],
