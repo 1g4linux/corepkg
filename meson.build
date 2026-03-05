@@ -94,6 +94,8 @@ subdir('bin')
 subdir('lib')
 
 if system_wide
+    subdir('core-functions')
+    subdir('elt-patches')
     subdir('eselect')
 endif
 

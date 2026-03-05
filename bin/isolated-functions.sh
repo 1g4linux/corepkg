@@ -638,7 +638,7 @@ __eqatag() {
 # You can override the setting by exporting a new one from the console, or you can
 # set a new default in make.*. Here the default is "" or unset.
 #
-# (TODO: in the future, might use e* from /lib/gentoo/functions.sh?)
+# (TODO: in the future, might use e* from /lib/corepkg/functions/functions.sh?)
 debug-print() {
 	# If ${T} isn't defined, we're in dep calculation mode and
 	# shouldn't do anything

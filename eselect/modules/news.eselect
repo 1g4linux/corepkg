@@ -7,7 +7,7 @@ inherit package-manager
 DESCRIPTION="Read Gentoo (\"GLEP 42\") news items"
 MAINTAINER="ulm@gentoo.org"
 
-NEWS_DIR="/var/lib/gentoo/news"
+NEWS_DIR="/var/lib/corepkg/news"
 
 # read list of news items
 # list of parameters may contain "unread" or "read"
