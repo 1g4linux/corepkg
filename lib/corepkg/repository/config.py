@@ -70,6 +70,11 @@ _valid_profile_formats = frozenset(
     ]
 )
 
+_profile_format_aliases = {
+    "portage-1": "corepkg-1",
+    "portage-2": "corepkg-2",
+}
+
 _corepkg1_profiles_allow_directories = frozenset(
     ["corepkg-1-compat", "corepkg-1", "corepkg-2"]
 )
@@ -1742,7 +1747,9 @@ def parse_layout_conf(repo_location, repo_name=None):
         else:
             raw_formats = ("corepkg-1-compat",)
     else:
-        raw_formats = set(raw_formats.split())
+        raw_formats = {
+            _profile_format_aliases.get(fmt, fmt) for fmt in raw_formats.split()
+        }
         unknown = raw_formats.difference(_valid_profile_formats)
         if unknown:
             repo_name = _get_repo_name(repo_location, cached=repo_name)
