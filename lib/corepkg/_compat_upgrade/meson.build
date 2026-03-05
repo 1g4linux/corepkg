@@ -14,8 +14,8 @@ py.install_sources(
 py.install_sources(
     [
         'one_off/__init__.py',
-        'one_off/20260305_drop_eselect_vdb.py',
         'one_off/20260305_drop_legacy_split_packages_vdb.py',
+        'one_off/20260305_prune_unowned_legacy_paths.py',
     ],
     subdir : 'corepkg/_compat_upgrade/one_off',
     pure : not native_extensions
