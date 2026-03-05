@@ -93,6 +93,10 @@ endif
 subdir('bin')
 subdir('lib')
 
+if system_wide
+    subdir('eselect')
+endif
+
 if native_extensions
     subdir('src')
 endif
