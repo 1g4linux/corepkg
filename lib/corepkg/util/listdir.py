@@ -38,30 +38,27 @@ def cacheddir(
         return [], []
     else:
         try:
-            fpaths = os.listdir(mypath)
+            with os.scandir(mypath) as dir_handle:
+                fpaths = []
+                ftype = []
+                for entry in dir_handle:
+                    fpaths.append(entry.name)
+                    try:
+                        if not followSymlinks and entry.is_symlink():
+                            ftype.append(2)
+                        elif entry.is_file(follow_symlinks=followSymlinks):
+                            ftype.append(0)
+                        elif entry.is_dir(follow_symlinks=followSymlinks):
+                            ftype.append(1)
+                        else:
+                            ftype.append(3)
+                    except OSError:
+                        ftype.append(3)
         except OSError as e:
             if e.errno != errno.EACCES:
                 raise
             del e
             raise PermissionDenied(mypath)
-        ftype = []
-        for x in fpaths:
-            try:
-                if followSymlinks:
-                    pathstat = os.stat(mypath + "/" + x)
-                else:
-                    pathstat = os.lstat(mypath + "/" + x)
-
-                if stat.S_ISREG(pathstat[stat.ST_MODE]):
-                    ftype.append(0)
-                elif stat.S_ISDIR(pathstat[stat.ST_MODE]):
-                    ftype.append(1)
-                elif stat.S_ISLNK(pathstat[stat.ST_MODE]):
-                    ftype.append(2)
-                else:
-                    ftype.append(3)
-            except OSError:
-                ftype.append(3)
 
     if ignorelist or ignorecvs:
         ret_list = []
