@@ -393,9 +393,12 @@ use_enable() {
 }
 
 unpack() {
-	local created_symlink bzip2_cmd basename output srcdir suffix name f
+	local created_symlink bzip2_cmd basename output srcdir suffix name f jobs
+	local tar_xz_cmd
 	local -A suffix_by
 	local -a suffixes
+	local -a gzip_cmd
+	local -a xz_cmd
 	local -x XZ_OPT
 
 	if (( $# == 0 )); then
@@ -448,8 +451,26 @@ unpack() {
 		fi
 	done
 
+	jobs=$(___makeopts_jobs)
+	# Ensure we always pass a positive thread count to tools that support it.
+	if [[ -z ${jobs} || ${jobs} -lt 1 ]]; then
+		jobs=1
+	elif (( jobs > 4 )); then
+		jobs=4
+	fi
+
+	# Prefer pigz for large gzip payloads when available.
+	gzip_cmd=( gzip -d -c )
+	if (( jobs > 1 )) && hash pigz 2>/dev/null; then
+		gzip_cmd=( pigz -d -c -p "${jobs}" )
+	fi
+
+	# Explicit threaded xz decompression for large archives.
+	xz_cmd=( xz -d -c -T "${jobs}" )
+	tar_xz_cmd="xz -d -T${jobs}"
+
 	# Ensure that xz(1) operates in its multi-threaded mode.
-	XZ_OPT="-T$(___makeopts_jobs)"
+	XZ_OPT="-T${jobs}"
 
 	for f; do
 		# wrt PMS 12.3.15 Misc Commands
@@ -533,7 +554,7 @@ unpack() {
 				fi
 				;;
 			gz|z)
-				gzip -dc -- "${srcdir}${f}" > "${basename%.*}"
+				"${gzip_cmd[@]}" -- "${srcdir}${f}" > "${basename%.*}"
 				;;
 			jar|zip)
 				# unzip will interactively prompt under some error conditions,
@@ -553,18 +574,18 @@ unpack() {
 			tar.bz|tar.bz2|tbz|tbz2)
 				tar -I "${bzip2_cmd-bzip2} -c" -xof "${srcdir}${f}"
 				;;
-			tar|tar.*|tgz)
+			tar.xz|txz)
+				tar -I "${tar_xz_cmd}" -xof "${srcdir}${f}"
+				;;
+			tar|tar.*)
 				# GNU tar recognises various file suffixes, for
 				# which it is able to execute the appropriate
 				# decompressor. They are documented by the
 				# (info) manual for the -a option.
 				tar --warning=decompress-program -xof "${srcdir}${f}"
 				;;
-			txz)
-				tar -xJof "${srcdir}${f}"
-				;;
 			xz)
-				xz -dc -- "${srcdir}${f}" > "${basename%.*}"
+				"${xz_cmd[@]}" -- "${srcdir}${f}" > "${basename%.*}"
 				;;
 		esac || die "unpack: failure unpacking ${f@Q}"
 	done
