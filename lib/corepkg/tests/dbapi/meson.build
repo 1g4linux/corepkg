@@ -6,6 +6,7 @@ py.install_sources(
         'test_fakedbapi.py',
         'test_portdb_cache.py',
         'test_portdb_eapi_guardrails.py',
+        'test_portdb_lookup_fastpath.py',
         '__init__.py',
         '__test__.py',
     ],

@@ -41,12 +41,26 @@ import traceback
 import warnings
 import errno
 import shlex
+import re
 
 import collections
 from collections import OrderedDict
 from collections.abc import Sequence
 from typing import Optional, Union
 from urllib.parse import urlparse
+from corepkg.versions import _pkgsplit
+
+_category_name_re = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9+_.-]*$", re.ASCII)
+_package_name_re = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_+-]*$", re.ASCII)
+
+
+def _is_valid_cp_components(category, package):
+    if _category_name_re.match(category) is None:
+        return False
+    if _package_name_re.match(package) is None:
+        return False
+    # Package names must not have the same form as a PV/PVR suffix.
+    return _pkgsplit(package) is None
 
 
 def close_portdbapi_caches():
@@ -149,8 +163,11 @@ class _better_cache:
         return self._items[catpkg]
 
     def _scan_cat(self, cat):
-        from corepkg.dep import Atom
+        if _category_name_re.match(cat) is None:
+            self._scanned_cats.add(cat)
+            return
 
+        cp_prefix = f"{cat}/"
         for repo in self._repo_list:
             cat_dir = repo.location + "/" + cat
             try:
@@ -160,13 +177,9 @@ class _better_cache:
                     raise
                 continue
             for p in pkg_list:
-                try:
-                    atom = Atom(f"{cat}/{p}")
-                except InvalidAtom:
+                if not _is_valid_cp_components(cat, p):
                     continue
-                if atom != atom.cp:
-                    continue
-                self._items[atom.cp].append(repo)
+                self._items[cp_prefix + p].append(repo)
         self._scanned_cats.add(cat)
 
 
@@ -1135,7 +1148,6 @@ class portdbapi(dbapi):
         @param sort: return sorted results (default is True)
         @rtype list of [cat/pkg,...]
         """
-        from corepkg.dep import Atom
         from corepkg.util.listdir import listdir
 
         d = {}
@@ -1144,17 +1156,14 @@ class portdbapi(dbapi):
         if trees is None:
             trees = self.porttrees
         for x in categories:
+            cp_prefix = f"{x}/"
             for oroot in trees:
                 for y in listdir(
                     oroot + "/" + x, EmptyOnError=1, ignorecvs=1, dirsonly=1
                 ):
-                    try:
-                        atom = Atom(f"{x}/{y}")
-                    except InvalidAtom:
+                    if not _is_valid_cp_components(x, y):
                         continue
-                    if atom != atom.cp:
-                        continue
-                    d[atom.cp] = None
+                    d[cp_prefix + y] = None
         l = list(d)
         if sort:
             l.sort(reverse=reverse)
