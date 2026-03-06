@@ -91,3 +91,24 @@ class test_gpkg_stream_case(TestCase):
                 self.assertEqual(data, data2)
         finally:
             shutil.rmtree(tmpdir)
+
+    def test_tar_safe_extract_detects_dot_slash_duplicate(self):
+        tmpdir = tempfile.mkdtemp()
+        tar_path = os.path.join(tmpdir, "dup.tar")
+        extract_path = os.path.join(tmpdir, "extract")
+
+        os.mkdir(extract_path)
+
+        try:
+            with tarfile.open(tar_path, "w") as archive:
+                for name in ("./image/dup", "image/dup"):
+                    data = b"x"
+                    info = tarfile.TarInfo(name)
+                    info.size = len(data)
+                    archive.addfile(info, io.BytesIO(data))
+
+            with tarfile.open(tar_path, "r") as archive:
+                safe_extract = corepkg.gpkg.tar_safe_extract(archive, "image")
+                self.assertRaises(ValueError, safe_extract.extractall, extract_path)
+        finally:
+            shutil.rmtree(tmpdir)

@@ -2,6 +2,7 @@ py.install_sources(
     [
         'test_atomic_ofstream.py',
         'test_checksum.py',
+        'test_compression_probe.py',
         'test_digraph.py',
         'test_file_copier.py',
         'test_getconfig.py',

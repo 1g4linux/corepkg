@@ -48,7 +48,7 @@ _compressors = {
         # Therefore, pass a larger --long=31 value to the decompressor
         # if the current architecture can support it, which is true when
         # sizeof(long) is at least 8 bytes.
-        "decompress": "zstd -d"
+        "decompress": "zstd -T{JOBS} -d"
         + (" --long=31" if ctypes and ctypes.sizeof(ctypes.c_long) >= 8 else ""),
         "package": "app-arch/zstd",
     },

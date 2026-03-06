@@ -680,6 +680,7 @@ class tar_safe_extract:
         self.prefix = prefix
         self.closed = False
         self.file_list = []
+        self._file_set = set()
 
     def extractall(self, dest_dir: str):
         """
@@ -703,8 +704,8 @@ class tar_safe_extract:
                 member = self.tar.next()
                 if member is None:
                     break
-                if (member.name in self.file_list) or (
-                    os.path.join(".", member.name) in self.file_list
+                if (member.name in self._file_set) or (
+                    os.path.join(".", member.name) in self._file_set
                 ):
                     writemsg(
                         colorize(
@@ -742,6 +743,7 @@ class tar_safe_extract:
                     raise ValueError("Hardlink escape detected.")
 
                 self.file_list.append(member.name)
+                self._file_set.add(member.name)
                 self.tar.extract(member, path=temp_dir.name)
 
             data_dir = os.path.join(temp_dir.name, self.prefix)
