@@ -23,6 +23,7 @@ from corepkg.localization import _
 from corepkg import (
     eclass_cache,
     eapi_is_valid_for_runtime,
+    normalize_eapi,
     unsupported_eapi_message,
     _eapi_is_deprecated,
 )
@@ -952,9 +953,9 @@ class portdbapi(dbapi):
                 return
 
             eapi, myuris = aux_get_future.result()
-            effective_eapi = "8" if not eapi else eapi
+            effective_eapi = normalize_eapi(eapi)
 
-            if effective_eapi != "8":
+            if not eapi_is_valid_for_runtime(eapi):
                 # Convert this to an InvalidDependString exception
                 # since callers already handle it.
                 result.set_exception(
