@@ -3,10 +3,15 @@
 # Check for important gcc warnings
 # TODO: adapt for clang?
 # TODO: add -Wformat-security
+#
+# ebuilds may define QA_GCC_WARN_SKIP as an array of extended regexes used to
+# suppress known warning false positives.
 
 gcc_warn_check() {
 	local i reset_xtrace
+	local entry skip_re
 	local -a patterns
+	local -a skip_patterns=()
 
 	# Evaluate misc gcc warnings
 	# In debug mode, this variable definition and corresponding grep calls
@@ -148,13 +153,20 @@ gcc_warn_check() {
 		#' not enough variable arguments to fit a sentinel'
 	)
 
-	while read -r; do
+	if declare -p QA_GCC_WARN_SKIP >/dev/null 2>&1; then
+		skip_patterns=( "${QA_GCC_WARN_SKIP[@]}" )
+	fi
+
+	while read -r entry; do
+		for skip_re in "${skip_patterns[@]}"; do
+			[[ ${entry} =~ ${skip_re} ]] && continue 2
+		done
 		if (( i++ == 0 )); then
 			__vecho -ne '\n'
 			eqawarn "QA Notice: Package triggers severe warnings which indicate that it"
 			eqawarn "           may exhibit random runtime failures."
 		fi
-		eqawarn "${REPLY}"
+		eqawarn "${entry}"
 	done < <(
 		# Coerce C as the character type for performance reasons, per
 		# bug #160234. Coerce C as the collation to guarantee that
