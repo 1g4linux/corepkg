@@ -17,14 +17,59 @@ if ! declare -F log_info >/dev/null 2>&1; then
   : "${ICON_LOADING:=...}"
 fi
 
-# aliases
-alias eupdate='emerge --sync && eup'
-alias rebuild_packages='eup && rebuild_world'
-alias 1g4_nspawn='systemd-nspawn --bind /var/cache/distfiles --bind-ro /var/db/repos/bp --bind-ro /var/db/repos/private-overlay'
-alias oneshot='emerge --oneshot'
-alias update_world='emerge --keep-going -uDNv world'
-alias update_everything='emerge --keep-going -euDNv world'
-alias egm='egencache --repo bp --update-manifests --sign-manifests=n -j "$(nproc)" ; egencache --repo "private-overlay" --update-manifests --sign-manifests=n -j "$(nproc)"'
+# shell shortcuts
+#
+# Use functions instead of aliases so arguments can be forwarded and
+# workflows can be composed safely.
+eupdate() {
+  # Repositories are usually git-managed locally; refresh metadata and update.
+  eup "$@"
+}
+
+rebuild_packages() {
+  eup "$@" || return 1
+  rebuild_world
+}
+
+oneshot() {
+  if [[ $# -eq 0 ]]; then
+    log_warn "usage: oneshot <atom> [atom ...]"
+    return 2
+  fi
+  command emerge --oneshot "$@"
+}
+
+update_world() {
+  command emerge --keep-going --update --deep --newuse --verbose "$@" @world
+}
+
+update_everything() {
+  command emerge --keep-going --emptytree --update --deep --newuse --verbose "$@" @world
+}
+
+egm() {
+  local jobs="${EGENCACHE_JOBS:-$(nproc)}"
+  local repos=("$@")
+  local repo
+
+  if [[ ${#repos[@]} -eq 0 ]]; then
+    repos=(bp private-overlay)
+  fi
+
+  for repo in "${repos[@]}"; do
+    run_step "updating manifests for repo ${repo}" -- \
+      egencache --repo "$repo" --update-manifests --sign-manifests=n -j "$jobs" || return 1
+  done
+}
+
+oneg4_nspawn() {
+  command systemd-nspawn \
+    --bind /var/cache/distfiles \
+    --bind-ro /var/db/repos/bp \
+    --bind-ro /var/db/repos/private-overlay \
+    "$@"
+}
+alias 1g4_nspawn='oneg4_nspawn'
 
 # simple foreground step runner without spinner
 run_step() {
