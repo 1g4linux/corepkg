@@ -131,7 +131,10 @@ class PackageVirtualDbapi(dbapi):
         old_pkg = self._cpv_map.get(pkg.cpv)
         if old_pkg != pkg:
             raise KeyError(pkg)
-        self._cp_map[pkg.cp].remove(pkg)
+        cp_list = self._cp_map[pkg.cp]
+        cp_list.remove(pkg)
+        if not cp_list:
+            del self._cp_map[pkg.cp]
         del self._cpv_map[pkg.cpv]
         self._clear_cache()
 
