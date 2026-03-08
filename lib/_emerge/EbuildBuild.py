@@ -427,26 +427,8 @@ class EbuildBuild(CompositeTask):
         Release the lock asynchronously, and if a returncode parameter
         is given then set self.returncode and notify exit listeners.
         """
-        if returncode is not None:
-            # The returncode will be set after unlock is complete.
-            self.returncode = None
         corepkg.elog.elog_process(self.pkg.cpv, self.settings)
-        self._start_task(
-            AsyncTaskFuture(future=self._build_dir.async_unlock()),
-            functools.partial(self._unlock_builddir_exit, returncode=returncode),
-        )
-
-    def _unlock_builddir_exit(self, unlock_task, returncode=None):
-        self._assert_current(unlock_task)
-        if unlock_task.cancelled and returncode is not None:
-            self._default_final_exit(unlock_task)
-            return
-
-        # Normally, async_unlock should not raise an exception here.
-        unlock_task.future.cancelled() or unlock_task.future.result()
-        if returncode is not None:
-            self.returncode = returncode
-            self._async_wait()
+        self._start_builddir_unlock("_build_dir", returncode=returncode)
 
     def _build_exit(self, build):
         if self._default_exit(build) != os.EX_OK:

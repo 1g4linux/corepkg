@@ -1,7 +1,6 @@
-# Copyright 1999-2012 Gentoo Foundation
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-import functools
 import logging
 import corepkg
 from corepkg import os
@@ -125,25 +124,7 @@ class PackageUninstall(CompositeTask):
         Release the lock asynchronously, and if a returncode parameter
         is given then set self.returncode and notify exit listeners.
         """
-        if returncode is not None:
-            # The returncode will be set after unlock is complete.
-            self.returncode = None
-        self._start_task(
-            AsyncTaskFuture(future=self._builddir_lock.async_unlock()),
-            functools.partial(self._unlock_builddir_exit, returncode=returncode),
-        )
-
-    def _unlock_builddir_exit(self, unlock_task, returncode=None):
-        self._assert_current(unlock_task)
-        if unlock_task.cancelled and returncode is not None:
-            self._default_final_exit(unlock_task)
-            return
-
-        # Normally, async_unlock should not raise an exception here.
-        unlock_task.future.cancelled() or unlock_task.future.result()
-        if returncode is not None:
-            self.returncode = returncode
-            self._async_wait()
+        self._start_builddir_unlock("_builddir_lock", returncode=returncode)
 
     def _emergelog(self, msg):
         emergelog("notitles" not in self.settings.features, msg)

@@ -1,12 +1,15 @@
-# Copyright 1999-2023 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
+
+import functools
 
 from _emerge.AsynchronousTask import AsynchronousTask
 from corepkg import os
+from corepkg.util._async.AsyncTaskFuture import AsyncTaskFuture
 
 
 class CompositeTask(AsynchronousTask):
-    __slots__ = ("_current_task",)
+    __slots__ = ("_current_task", "_builddir_unlock_task")
 
     _TASK_QUEUED = -1
 
@@ -115,6 +118,48 @@ class CompositeTask(AsynchronousTask):
         task.addExitListener(exit_handler)
         self._current_task = task
         task.start()
+
+    def _start_builddir_unlock(self, lock_attr, returncode=None):
+        """
+        Start asynchronous builddir unlock for the lock stored in lock_attr.
+        The lock attribute is cleared immediately so repeated teardown paths
+        do not try to unlock the same builddir twice.
+        """
+        if self._builddir_unlock_task is not None:
+            raise AssertionError("unlock already in progress")
+
+        builddir_lock = getattr(self, lock_attr)
+        if builddir_lock is None:
+            raise AssertionError(f"{lock_attr} is None")
+
+        if returncode is not None:
+            # The returncode will be set after unlock is complete.
+            self.returncode = None
+
+        unlock_task = AsyncTaskFuture(future=builddir_lock.async_unlock())
+        self._builddir_unlock_task = unlock_task
+        setattr(self, lock_attr, None)
+        self._start_task(
+            unlock_task,
+            functools.partial(self._builddir_unlock_exit, returncode=returncode),
+        )
+
+    def _builddir_unlock_exit(self, unlock_task, returncode=None):
+        self._assert_current(unlock_task)
+        if unlock_task is not self._builddir_unlock_task:
+            raise AssertionError(f"Unrecognized builddir unlock task: {unlock_task}")
+
+        self._builddir_unlock_task = None
+
+        if unlock_task.cancelled and returncode is not None:
+            self._default_final_exit(unlock_task)
+            return
+
+        # Normally, async_unlock should not raise an exception here.
+        unlock_task.future.cancelled() or unlock_task.future.result()
+        if returncode is not None:
+            self.returncode = returncode
+            self._async_wait()
 
     def _task_queued(self, task):
         task.addStartListener(self._task_queued_start_handler)
