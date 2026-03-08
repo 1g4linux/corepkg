@@ -4,6 +4,7 @@ py.install_sources(
         'test_dobin.py',
         'test_dodir.py',
         'test_doins.py',
+        'test_estrip.py',
         'test_eapi_sh.py',
         'test_ver_funcs.py',
         'test_filter_bash_env.py',

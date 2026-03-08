@@ -29,6 +29,17 @@ raise_warnings() {
 	done
 }
 
+path_has_prefix_boundary() {
+	local path=${1%/}
+	local prefix=${2%/}
+
+	[[ -n ${path} ]] || path=/
+	[[ -n ${prefix} ]] || prefix=/
+
+	[[ ${prefix} == / ]] && return 0
+	[[ ${path} == "${prefix}" || ${path} == "${prefix}/"* ]]
+}
+
 # Usage: save_elf_sources <elf>
 save_elf_sources() {
 	local x=$1
@@ -369,15 +380,15 @@ do_queue() {
 				# find_path entries may be exact paths (like /usr/lib64/libfoo.so)
 				# or instead /usr/lib64, or ${ED}/usr, etc.
 				#
-				# We check if the beginning (i.e. first entry) of the NEEDED line
-				# matches the path given
-				# e.g. find_path="/usr/lib64" will match needed_entry="/usr/lib64/libfoo.so libc.so".
-				needed_entry_file="${needed_entry% *}"
-				if [[ ${needed_entry_file} == "${find_path#"${D}"}"* ]]; then
-					scanelf_results+=( "${D}${needed_entry_file}" )
-				fi
-			done
-		done < "${PORTAGE_BUILDDIR}"/build-info/NEEDED
+					# We check if the beginning (i.e. first entry) of the NEEDED line
+					# matches the path given
+					# e.g. find_path="/usr/lib64" will match needed_entry="/usr/lib64/libfoo.so libc.so".
+					needed_entry_file="${needed_entry% *}"
+					if path_has_prefix_boundary "${needed_entry_file}" "${find_path#"${D}"}"; then
+						scanelf_results+=( "${D}${needed_entry_file}" )
+					fi
+				done
+			done < "${PORTAGE_BUILDDIR}"/build-info/NEEDED
 	else
 		mapfile -t scanelf_results < <(scanelf -yqRBF '#k%F' -k '.symtab' "${find_paths[@]}")
 	fi
@@ -481,6 +492,7 @@ declare -A warned_for
 
 # Figure out what tool set we're using to strip stuff
 unset SAFE_STRIP_FLAGS DEF_STRIP_FLAGS SPLIT_STRIP_FLAGS
+LDFLAGS_CHECK_SENTINEL=__corepkg_check_ldflags__
 case $("${name_of[strip]}" --version 2>/dev/null) in
 	*elfutils*) # dev-libs/elfutils
 		# elfutils default behavior is always safe, so don't need to specify
@@ -492,12 +504,16 @@ case $("${name_of[strip]}" --version 2>/dev/null) in
 	*GNU*) # sys-devel/binutils
 		# We'll leave out -R .note for now until we can check out the relevance
 		# of the section when it has the ALLOC flag set on it ...
-		SAFE_STRIP_FLAGS="--strip-unneeded -N __gentoo_check_ldflags__"
+		SAFE_STRIP_FLAGS="--strip-unneeded -N ${LDFLAGS_CHECK_SENTINEL}"
 		DEF_STRIP_FLAGS="-R .comment -R .GCC.command.line -R .note.gnu.gold-version"
 		SPLIT_STRIP_FLAGS=
 esac
 
 read -rd '' -a corepkg_strip_flags <<<"${PORTAGE_STRIP_FLAGS-${SAFE_STRIP_FLAGS} ${DEF_STRIP_FLAGS}}"
+declare -a strip_mask_patterns=()
+if [[ -n ${STRIP_MASK} ]]; then
+	IFS=$' \t\r\n' read -r -d '' -a strip_mask_patterns < <(printf '%s\0' "${STRIP_MASK}")
+fi
 
 prepstrip_sources_dir=${EPREFIX}/usr/src/debug/${CATEGORY}/${PF}
 
@@ -602,20 +618,13 @@ for inode_link in *; do
 			do_strip=1
 		else
 			do_strip=1
-			while IFS= read -rd '' glob; do
+			for glob in "${strip_mask_patterns[@]}"; do
 				# shellcheck disable=2053
 				if [[ ${x#"${ED%/}"} == ${glob} ]]; then
 					do_strip=0
 					break
 				fi
-			done < <(
-				# FIXME: This facilitates code injection, just
-				# for the sake of supporting brace-expansion.
-				# To support it amounts to a grave anti-feature.
-				# It really ought to be dropped.
-				shopt -o -s noglob
-				eval "printf '%s\\0' ${STRIP_MASK}"
-			)
+			done
 		fi
 
 		if (( has_feature[splitdebug] && ! has_restriction[splitdebug] )); then
