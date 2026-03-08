@@ -47,21 +47,6 @@ update_everything() {
   command emerge --keep-going --emptytree --update --deep --newuse --verbose "$@" @world
 }
 
-egm() {
-  local jobs="${EGENCACHE_JOBS:-$(nproc)}"
-  local repos=("$@")
-  local repo
-
-  if [[ ${#repos[@]} -eq 0 ]]; then
-    repos=(bp private-overlay)
-  fi
-
-  for repo in "${repos[@]}"; do
-    run_step "updating manifests for repo ${repo}" -- \
-      egencache --repo "$repo" --update-manifests --sign-manifests=n -j "$jobs" || return 1
-  done
-}
-
 oneg4_nspawn() {
   command systemd-nspawn \
     --bind /var/cache/distfiles \
@@ -156,15 +141,16 @@ bootstrap_go() {
 
 eup() {
   trap 'log_warn "interrupted by user"; return 1' SIGINT
+  local emerge_args=("$@")
 
-  run_step "syncing overlays" -- esync || return 1
-  run_step "world update pass 1" -- emerge --keep-going -uDNv world || return 1
-  run_step "env-update" -- bash -lc 'env-update && source /etc/profile' || return 1
+  run_step "refreshing local repos" -- esync || return 1
+  run_step "world update pass 1" -- emerge --keep-going --update --deep --newuse --verbose "${emerge_args[@]}" @world || return 1
+  run_step "env-update" -- env-update || return 1
   run_step "depclean" -- emerge --depclean || return 1
   run_step "preserved rebuild" -- emerge @preserved-rebuild || return 1
-  run_step "world update pass 2" -- emerge --keep-going -uDNv world || return 1
+  run_step "world update pass 2" -- emerge --keep-going --update --deep --newuse --verbose "${emerge_args[@]}" @world || return 1
   run_step "oneshot libtool" -- emerge --oneshot libtool || return 1
-  run_step "env-update" -- bash -lc 'env-update && source /etc/profile' || return 1
+  run_step "env-update" -- env-update || return 1
 
   log_success "system updated"
   trap - SIGINT
@@ -172,23 +158,38 @@ eup() {
 
 esync() {
   trap 'log_warn "interrupted by user"; return 1' SIGINT
+  local jobs="${EGENCACHE_JOBS:-$(nproc)}"
+  local repos=("$@")
+  local dir repo
 
-  log_task "regenerating bp repo cache"
-  for dir in /var/db/repos/*/; do
-    dir=${dir%*/}
-    if [[ -d "$dir" ]]; then
-      log_info "updating cache for repo ${dir##*/}"
-      pushd "$dir" >/dev/null
-      egencache --jobs=8 --update --repo "${dir##*/}"
-      popd >/dev/null
-    else
-      log_warn "skipping non-directory $dir"
-    fi
+  if [[ ${#repos[@]} -eq 0 ]]; then
+    for dir in /var/db/repos/*/; do
+      dir=${dir%/}
+      [[ -d "$dir" ]] || continue
+      repos+=("${dir##*/}")
+    done
+  fi
+
+  if [[ ${#repos[@]} -eq 0 ]]; then
+    log_warn "no repositories found under /var/db/repos"
+    return 0
+  fi
+
+  for repo in "${repos[@]}"; do
+    run_step "updating metadata cache for repo ${repo}" -- \
+      egencache --jobs="$jobs" --update --repo "$repo" || return 1
   done
 
-  run_step "emerge --regen" -- emerge --regen || return 1
-  run_step "emerge --metadata" -- emerge --metadata || return 1
-  run_step "coreq-update" -- coreq-update || return 1
+  if ! run_step "emerge --metadata" -- emerge --metadata; then
+    log_warn "metadata transfer failed, falling back to emerge --regen"
+    run_step "emerge --regen" -- emerge --regen || return 1
+  fi
+
+  if command -v coreq-update >/dev/null 2>&1; then
+    run_step "coreq-update" -- coreq-update || return 1
+  else
+    log_warn "coreq-update not found; skipping coreq cache refresh"
+  fi
 
   log_ok "cache regeneration complete"
   trap - SIGINT
