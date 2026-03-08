@@ -36,9 +36,9 @@ class MoveHandler:
                 rawupdates = []
             upd_commands = []
             for mykey, mystat, mycontent in rawupdates:
-                commands, errors = parse_updates(mycontent)
+                commands, parse_errors = parse_updates(mycontent)
                 upd_commands.extend(commands)
-                errors.extend(errors)
+                errors.extend(parse_errors)
             retupdates[repo_name] = upd_commands
 
         if self._master_repo in retupdates:
